@@ -83,6 +83,7 @@
     "@types/bun": "latest",
     "@types/node": "^20.14.2",
     "@types/vscode": "^1.70.0",
+    "@vscode/vsce": "^3.9.1",
     "ohm-js": "^17.1.0",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
