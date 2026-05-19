@@ -62,11 +62,6 @@
           "type": "boolean",
           "default": true,
           "description": "Enable the Silicon language server (diagnostics, go-to-definition, document symbols, hover)."
-        },
-        "silicon.lsp.serverPath": {
-          "type": "string",
-          "default": "",
-          "description": "Optional absolute path to the silicon-lsp entry point (silicon-lsp/src/index.ts).  When empty the extension resolves it relative to the workspace root."
         }
       }
     },
@@ -79,11 +74,21 @@
   },
   "scripts": {
     "vscode:prepublish": "bun run build",
-    "build": "bun build ./client/src/extension.ts --outdir ./client/dist --target node --external vscode"
+    "build": "bun run build:client && bun run build:server",
+    "build:client": "bun build ./client/src/extension.ts --outdir ./client/dist --target node --external vscode",
+    "build:server": "bun build ./lsp/src/index.ts --outdir ./lsp/dist --target node --format esm && cp ./src/codegen/std.wat ./lsp/dist/std.wat && cp ./src/grammar/silicon-official.ohm ./lsp/dist/silicon-official.ohm",
+    "test:server": "bun test lsp/src/smoke.test.ts"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "@types/node": "^20.14.2",
     "@types/vscode": "^1.70.0",
-    "vscode-languageclient": "^9.0.1"
+    "ohm-js": "^17.1.0",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
   }
 }

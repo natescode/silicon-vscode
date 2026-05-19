@@ -1,19 +1,13 @@
 /**
- * VS Code client wrapper for silicon-lsp.
+ * VS Code client wrapper for the bundled Silicon language server.
  *
- * Spawns the language server as a `bun run` child process on demand,
- * registers it under the `silicon` document selector, and keeps the
+ * The server is shipped inside this VSIX at `lsp/dist/index.js` — a
+ * single bundled Node script produced by `bun run build:server`.  At
+ * activation we spawn it as a child `node` process and keep the
  * connection alive for the lifetime of the extension.
- *
- * The server can be located via the `silicon.lsp.serverPath` setting;
- * if empty, we resolve `silicon-lsp/src/index.ts` relative to the first
- * workspace folder.  This matches the in-monorepo layout shipped today;
- * once `silicon-lsp` is on npm we'll switch to resolving the binary
- * via `require.resolve`.
  */
 
 import * as path from 'node:path'
-import * as fs from 'node:fs'
 import {
     workspace, window, ExtensionContext, Disposable, commands,
 } from 'vscode'
@@ -29,24 +23,19 @@ export async function activate(ctx: ExtensionContext): Promise<void> {
         return
     }
 
-    const serverPath = resolveServerPath(config.get<string>('serverPath', ''))
-    if (!serverPath) {
-        window.showWarningMessage(
-            'Silicon LSP: could not locate silicon-lsp/src/index.ts. ' +
-            'Set silicon.lsp.serverPath in settings, or clone natescode/silicon-lsp as a sibling folder.',
-        )
-        return
-    }
+    // ctx.extensionPath points at the installed extension root.  The
+    // bundled server lives at <extensionRoot>/lsp/dist/index.js.
+    const serverPath = path.join(ctx.extensionPath, 'lsp', 'dist', 'index.js')
 
     const serverOptions: ServerOptions = {
         run: {
-            command: 'bun',
-            args: ['run', serverPath, '--stdio'],
+            command: 'node',
+            args: [serverPath, '--stdio'],
             transport: TransportKind.stdio,
         },
         debug: {
-            command: 'bun',
-            args: ['run', '--inspect=0.0.0.0:6009', serverPath, '--stdio'],
+            command: 'node',
+            args: ['--inspect=6009', serverPath, '--stdio'],
             transport: TransportKind.stdio,
         },
     }
@@ -76,21 +65,4 @@ export async function activate(ctx: ExtensionContext): Promise<void> {
 export async function deactivate(): Promise<void> {
     if (!client) return
     await client.stop()
-}
-
-/**
- * Locate the silicon-lsp entry point.  Search order:
- *   1. The explicit setting if non-empty.
- *   2. <workspace>/silicon-lsp/src/index.ts.
- *   3. <extension-dir>/../silicon-lsp/src/index.ts (sibling-folder layout).
- */
-function resolveServerPath(explicit: string): string | undefined {
-    if (explicit && fs.existsSync(explicit)) return explicit
-
-    const folders = workspace.workspaceFolders ?? []
-    for (const f of folders) {
-        const cand = path.join(f.uri.fsPath, 'silicon-lsp', 'src', 'index.ts')
-        if (fs.existsSync(cand)) return cand
-    }
-    return undefined
 }
